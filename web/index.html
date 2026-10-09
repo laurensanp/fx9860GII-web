@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>fx-9860GII</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="fx-9860GII">
+<meta name="theme-color" content="#11161c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --bg: #11161c; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    touch-action: none; font-family: -apple-system, system-ui, sans-serif; }
+  #stage { position: fixed; inset: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left); display: flex; align-items: center; justify-content: center; }
+  #calc { position: relative; width: 460px; height: 1022px; transform-origin: center center; flex: none; }
+  #skin { position: absolute; inset: 0; width: 460px; height: 1022px; pointer-events: none; }
+  #lcd { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .hit { position: absolute; border-radius: 9px; }
+  .hit.pad { border-radius: 50%; }
+  .hit.on { background: rgba(255, 255, 255, 0.32); }
+  .tool { position: absolute; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: transparent; }
+  .tool.on { background: #f0ac28; color: #fff; }
+  .tool.on.press, .tool.press { background: rgba(255, 255, 255, 0.35); }
+  #status { position: absolute; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #6e7176; text-align: center; white-space: nowrap; }
+  #status.warn { color: #be6e14; }
+  #status.ok { color: #287832; }
+
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(8, 11, 15, 0.72); padding: 24px; z-index: 10; }
+  .overlay.show { display: flex; }
+  .card { background: #1d2733; color: #d9e1ea; border-radius: 18px; padding: 22px 20px; max-width: 360px;
+    width: 100%; box-shadow: 0 12px 40px #000a; -webkit-user-select: text; user-select: text; }
+  .card h1 { font-size: 19px; margin: 0 0 10px; }
+  .card p { font-size: 14px; line-height: 1.45; margin: 0 0 12px; color: #b8c4d1; }
+  .card a { color: #8fb4ff; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 13px; font-size: 16px;
+    margin-top: 10px; background: #2f6db3; color: #fff; font-weight: 600; }
+  .btn.grey { background: #3a4a5c; }
+  .btn.red { background: #9c3434; }
+  #error { color: #ff9b8a; font-size: 13px; min-height: 1em; margin-top: 8px; }
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="calc">
+    <img id="skin" src="skin@3x.png" alt="">
+    <canvas id="lcd" width="128" height="64"></canvas>
+    <div id="status"></div>
+  </div>
+</div>
+
+<div class="overlay" id="setup">
+  <div class="card">
+    <h1>fx-9860GII Emulator</h1>
+    <p>Der Emulator braucht die Firmware deines eigenen Rechners: einen 4-MiB-Dump
+      (<code>fx9860gii2_full_4MB.bin</code>). Wie man ihn ausliest, steht in der
+      <a href="https://github.com/laurensanp/fx9860GII#auslesen-der-firmware" target="_blank" rel="noopener">Anleitung</a>.</p>
+    <p>Die Datei bleibt ausschließlich auf diesem Gerät und wird nirgendwohin hochgeladen.</p>
+    <label class="btn" for="romfile" style="text-align:center">Firmware-Datei wählen</label>
+    <input type="file" id="romfile">
+    <div id="error"></div>
+  </div>
+</div>
+
+<div class="overlay" id="menu">
+  <div class="card">
+    <h1>Rechner</h1>
+    <button class="btn" id="m-restart">Neu starten</button>
+    <p style="margin:10px 0 0;font-size:13px">Gespeicherte Dateien bleiben erhalten.</p>
+    <button class="btn red" id="m-wipe">Firmware und alle Daten löschen</button>
+    <button class="btn grey" id="m-close">Abbrechen</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

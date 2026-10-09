@@ -1,0 +1,3 @@
+# Binary assets must never get line-ending conversion.
+*.wasm binary
+*.png binary
