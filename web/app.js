@@ -182,17 +182,23 @@ function drawLcd() {
   lctx.putImageData(img, 0, 0);
 }
 
-let statusMsg = '', statusUntil = 0, statusClass = '';
-function flashStatus(text, cls, ms) { statusMsg = text; statusClass = cls; statusUntil = Date.now() + ms; }
+let toastTimer = null;
+function toast(text) {
+  const el = $('toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
 
+let lastOff = null;
 function updateStatus() {
-  const el = $('status');
-  let text = '', cls = '';
-  if (Date.now() < statusUntil) { text = statusMsg; cls = statusClass; }
-  else if (fx.fx_is_off()) { text = 'Ausgeschaltet – AC/ON tippen zum Einschalten'; cls = 'warn'; }
-  else if (turbo) { text = 'Turbo: volle Geschwindigkeit'; cls = 'warn'; }
-  if (el.textContent !== text) el.textContent = text;
-  if (el.className !== cls) el.className = cls;
+  const off = !!fx.fx_is_off();
+  if (off === lastOff) return;
+  lastOff = off;
+  const el = $('lcdmsg');
+  el.textContent = off ? 'Ausgeschaltet – AC/ON tippen' : '';
+  el.classList.toggle('show', off);
 }
 
 // ---------------- layout and input ----------------
@@ -202,14 +208,31 @@ function place(el, x, y, w, h) {
   el.style.width = w + 'px'; el.style.height = h + 'px';
 }
 
+// Which part of the skin to show. Phones are tall and narrow, so there the
+// brand row and the bottom margin are left out and the keys fill the width.
+function crops() {
+  const bottom = Math.max(...layout.keys.map((k) => k[5])) + 12;
+  return [
+    [6, 4, layout.w - 6, bottom],      // whole calculator face with the CASIO row
+    [10, 60, layout.w - 10, bottom],   // from the display panel down
+  ];
+}
+
 function fit() {
-  const calc = $('calc');
   const stage = $('stage');
   const cs = getComputedStyle(stage);
   const w = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const h = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  const s = Math.min(w / layout.w, h / layout.h);
-  calc.style.transform = `scale(${s})`;
+  const [full, panel] = crops().map(([x0, y0, x1, y1]) => ({ x0, y0, cw: x1 - x0, ch: y1 - y0 }));
+  const scaleOf = (c) => Math.min(w / c.cw, h / c.ch);
+  // Keep the CASIO row unless dropping it makes the calculator clearly bigger.
+  const c = scaleOf(panel) > scaleOf(full) * 1.04 ? panel : full;
+  const s = scaleOf(c);
+  const view = $('view');
+  view.style.width = c.cw * s + 'px';
+  view.style.height = c.ch * s + 'px';
+  view.style.borderRadius = c === panel ? 30 * s + 'px' : 34 * s + 'px';
+  $('calc').style.transform = `scale(${s}) translate(${-c.x0}px, ${-c.y0}px)`;
 }
 
 function press(el, code, down) {
@@ -223,7 +246,7 @@ async function buildUi() {
   onRGB = hexRGB(layout.lcd_on); offRGB = hexRGB(layout.lcd_off);
   const calc = $('calc');
   place(lcd, ...layout.lcd);
-  place($('status'), ...layout.status);
+  place($('lcdmsg'), ...layout.lcd);
 
   for (const [code, name, x0, y0, x1, y1] of layout.keys) {
     const el = document.createElement('div');
@@ -242,32 +265,23 @@ async function buildUi() {
     calc.appendChild(el);
   }
 
-  for (const [name, x0, y0, x1, y1] of layout.tools) {
-    const el = document.createElement('div');
-    el.className = 'tool';
-    el.textContent = { turbo: 'Turbo', shot: 'Screenshot', restart: 'Restart' }[name];
-    place(el, x0, y0, x1 - x0, y1 - y0);
-    el.addEventListener('pointerdown', (e) => { e.preventDefault(); el.classList.add('press'); });
-    el.addEventListener('pointerup', () => { el.classList.remove('press'); tool(name, el); });
-    el.addEventListener('pointercancel', () => el.classList.remove('press'));
-    calc.appendChild(el);
-  }
+  const mb = $('menubtn');
+  mb.addEventListener('pointerdown', (e) => { e.preventDefault(); mb.classList.add('press'); });
+  mb.addEventListener('pointercancel', () => mb.classList.remove('press'));
+  mb.addEventListener('pointerup', () => {
+    mb.classList.remove('press');
+    if (running) $('menu').classList.add('show');
+  });
 
   fit();
   window.addEventListener('resize', fit);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
 }
 
-async function tool(name, el) {
-  if (!running) return;
-  if (name === 'turbo') {
-    turbo = !turbo;
-    el.classList.toggle('on', turbo);
-  } else if (name === 'shot') {
-    await screenshot();
-  } else if (name === 'restart') {
-    $('menu').classList.add('show');
-  }
+function setTurbo(on) {
+  turbo = on;
+  $('turbobadge').classList.toggle('show', on);
+  $('m-turbo').textContent = on ? 'Turbo ausschalten' : 'Turbo einschalten';
 }
 
 async function screenshot() {
@@ -285,7 +299,7 @@ async function screenshot() {
   a.href = URL.createObjectURL(blob);
   a.download = file.name;
   a.click();
-  flashStatus('Screenshot gespeichert', 'ok', 3000);
+  toast('Screenshot gespeichert');
 }
 
 // Hardware keyboard (iPad keyboard, desktop browsers): same keys as the desktop app.
@@ -327,7 +341,9 @@ $('romfile').addEventListener('change', async (e) => {
   boot();
 });
 
-$('m-restart').onclick = () => { $('menu').classList.remove('show'); fx.fx_reset(); };
+$('m-restart').onclick = () => { $('menu').classList.remove('show'); fx.fx_reset(); toast('Neustart'); };
+$('m-turbo').onclick = () => { setTurbo(!turbo); $('menu').classList.remove('show'); };
+$('m-shot').onclick = async () => { $('menu').classList.remove('show'); await screenshot(); };
 $('m-close').onclick = () => $('menu').classList.remove('show');
 $('m-wipe').onclick = async () => {
   if (!confirm('Firmware, gespeicherte Dateien und Zustand wirklich von diesem Gerät löschen?')) return;
