@@ -270,7 +270,7 @@ async function buildUi() {
   mb.addEventListener('pointercancel', () => mb.classList.remove('press'));
   mb.addEventListener('pointerup', () => {
     mb.classList.remove('press');
-    if (running) $('menu').classList.add('show');
+    if (running) $('pop').classList.toggle('show');
   });
 
   fit();
@@ -281,7 +281,7 @@ async function buildUi() {
 function setTurbo(on) {
   turbo = on;
   $('turbobadge').classList.toggle('show', on);
-  $('m-turbo').textContent = on ? 'Turbo ausschalten' : 'Turbo einschalten';
+  $('m-turbo').classList.toggle('on', on);
 }
 
 async function screenshot() {
@@ -341,16 +341,34 @@ $('romfile').addEventListener('change', async (e) => {
   boot();
 });
 
-$('m-restart').onclick = () => { $('menu').classList.remove('show'); fx.fx_reset(); toast('Neustart'); };
-$('m-turbo').onclick = () => { setTurbo(!turbo); $('menu').classList.remove('show'); };
-$('m-shot').onclick = async () => { $('menu').classList.remove('show'); await screenshot(); };
-$('m-close').onclick = () => $('menu').classList.remove('show');
-$('m-wipe').onclick = async () => {
+// Pop-up entries behave like calculator keys: pressed look, action on release.
+function closePop() { $('pop').classList.remove('show'); }
+const popActions = {
+  'm-turbo': () => { setTurbo(!turbo); closePop(); },
+  'm-shot': async () => { closePop(); await screenshot(); },
+  'm-restart': () => { closePop(); fx.fx_reset(); toast('Neustart'); },
+  'm-wipe': () => { closePop(); wipe(); },
+};
+for (const [id, action] of Object.entries(popActions)) {
+  const el = $(id);
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add('press'); });
+  el.addEventListener('pointercancel', () => el.classList.remove('press'));
+  el.addEventListener('pointerup', () => { el.classList.remove('press'); action(); });
+}
+// While the pop-up is open, a tap anywhere else only closes it (no key press).
+document.addEventListener('pointerdown', (e) => {
+  if ($('pop').classList.contains('show') && !$('pop').contains(e.target) && !$('menubtn').contains(e.target)) {
+    e.preventDefault();
+    e.stopPropagation();
+    closePop();
+  }
+}, true);
+async function wipe() {
   if (!confirm('Firmware, gespeicherte Dateien und Zustand wirklich von diesem Gerät löschen?')) return;
   running = false;
   await dbClear();
   location.reload();
-};
+}
 
 // ---------------- start ----------------
 

@@ -40,6 +40,19 @@
   #lcdmsg { position: absolute; display: none; align-items: center; justify-content: center; text-align: center;
     padding: 0 30px; font-size: 16px; line-height: 1.4; color: #4d5446; }
   #lcdmsg.show { display: flex; }
+  /* Pop-up menu in the calculator's style: dark panel, key-like entries */
+  #pop { position: absolute; left: 238px; top: 336px; width: 200px; padding: 12px; border-radius: 16px;
+    background: #28292b; border: 2px solid #18181a; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    display: none; flex-direction: column; gap: 9px; z-index: 3; }
+  #pop.show { display: flex; }
+  #pop::before { content: ''; position: absolute; right: 26px; top: -9px; width: 14px; height: 14px;
+    background: #28292b; border-left: 2px solid #18181a; border-top: 2px solid #18181a; transform: rotate(45deg); }
+  .pk { height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    color: #f5f5f5; font: 700 13px/1 -apple-system, system-ui, sans-serif; letter-spacing: 0.04em;
+    background: linear-gradient(#303032 0 50%, #1e1e1f 50%); box-shadow: 0 3px 0 #080808, inset 0 0 0 1px #3c3d40; }
+  .pk.on { background: linear-gradient(#f5b636 0 50%, #f0ac28 50%); color: #fff; box-shadow: 0 3px 0 #84601a; }
+  .pk.red { background: linear-gradient(#e44a4a 0 50%, #de3a3a 50%); box-shadow: 0 3px 0 #7a2020; font-size: 12px; }
+  .pk.press { transform: translateY(2px); box-shadow: 0 1px 0 #080808; filter: brightness(1.25); }
   #toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 10px); transform: translateX(-50%);
     background: #1d2733ee; color: #d9e1ea; font-size: 14px; padding: 8px 14px; border-radius: 18px;
     opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 5; white-space: nowrap; }
@@ -70,6 +83,12 @@
       <div id="lcdmsg"></div>
       <div id="turbobadge">TURBO</div>
       <div id="menubtn"><i></i><i></i><i></i></div>
+      <div id="pop">
+        <div class="pk" id="m-turbo">TURBO</div>
+        <div class="pk" id="m-shot">SCREENSHOT</div>
+        <div class="pk" id="m-restart">RESTART</div>
+        <div class="pk red" id="m-wipe">FIRMWARE LÖSCHEN</div>
+      </div>
     </div>
   </div>
 </div>
@@ -85,18 +104,6 @@
     <label class="btn" for="romfile" style="text-align:center">Firmware-Datei wählen</label>
     <input type="file" id="romfile">
     <div id="error"></div>
-  </div>
-</div>
-
-<div class="overlay" id="menu">
-  <div class="card">
-    <h1>Rechner</h1>
-    <button class="btn" id="m-turbo">Turbo einschalten</button>
-    <button class="btn" id="m-shot">Screenshot</button>
-    <button class="btn" id="m-restart">Neu starten</button>
-    <p style="margin:6px 0 0;font-size:13px">Beim Neustart bleiben gespeicherte Dateien erhalten.</p>
-    <button class="btn red" id="m-wipe">Firmware und alle Daten löschen</button>
-    <button class="btn grey" id="m-close">Schließen</button>
   </div>
 </div>
 
