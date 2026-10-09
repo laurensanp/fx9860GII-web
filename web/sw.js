@@ -1,6 +1,7 @@
-// Offline support: the app files are cached on first visit. Bump VERSION
-// whenever any of them changes so phones pick up the new files.
-const VERSION = 'fx9860-v2';
+// Offline support. Online, files always come fresh from the network (and the
+// cache is refreshed); offline, the cached copies are used. Bump VERSION when
+// the file list changes.
+const VERSION = 'fx9860-v3';
 const FILES = [
   './', 'index.html', 'app.js', 'fxweb.wasm', 'skin@3x.png', 'layout.json',
   'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
@@ -19,6 +20,16 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || fetch(e.request)));
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  e.respondWith(
+    fetch(e.request, { cache: 'no-cache' })
+      .then((resp) => {
+        if (resp.ok) {
+          const copy = resp.clone();
+          caches.open(VERSION).then((c) => c.put(e.request, copy));
+        }
+        return resp;
+      })
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
+  );
 });
