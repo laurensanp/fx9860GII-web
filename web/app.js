@@ -354,7 +354,18 @@ $('m-wipe').onclick = async () => {
 
 // ---------------- start ----------------
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) {
+  // When a new version takes over, save and reload once so it is used right away.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', async () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    if (running) await saveState();
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then((reg) => reg.update());
+}
 
 (async () => {
   await buildUi();
