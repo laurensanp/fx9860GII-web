@@ -12,4 +12,4 @@ rustup target list --installed | grep -q wasm32-unknown-unknown || rustup target
 cp fxweb/target/wasm32-unknown-unknown/release/fxweb.wasm web/fxweb.wasm
 
 python3 make_photo_skin.py skin-photo.webp web
-ls -l web/fxweb.wasm web/skin@3x.png web/layout.json
+ls -l web/fxweb.wasm web/skin.webp web/layout.json

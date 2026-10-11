@@ -1,6 +1,6 @@
 """Builds the web app's skin from a photo of the calculator instead of drawing
 it: cuts the calculator out of the white background and writes
-web/skin@3x.png and web/layout.json (positions in 1x units, width 480).
+web/skin.webp and web/layout.json (positions in 1x units, width 480).
 
     python3 make_photo_skin.py <photo> <output dir> [preview.png]
 
@@ -14,6 +14,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 PHOTO, OUT = sys.argv[1], sys.argv[2]
 REF = 1932.0
+UPSCALE = 2
 
 GLASS = (615, 310, 1312, 695)          # x0, y0, x1, y1 of the LCD glass
 LCD = (648, 341, 632, 316)             # x, y, w, h of the 128x64 pixel area
@@ -51,20 +52,25 @@ photo = Image.open(PHOTO).convert("RGB")
 k = photo.size[0] / REF                # photo pixels per reference pixel
 
 # Background: everything near-white that is connected to the image border.
-near_white = photo.point(lambda v: 255 if v > 236 else 0).convert("L").point(lambda v: 255 if v == 255 else 0)
 r, g, b = photo.split()
 near_white = ImageChops.multiply(ImageChops.multiply(*(c.point(lambda v: 255 if v > 236 else 0) for c in (r, g))),
                                  b.point(lambda v: 255 if v > 236 else 0))
 fill = near_white.copy()
 for seed in [(0, 0), (photo.size[0] - 1, 0), (0, photo.size[1] - 1), (photo.size[0] - 1, photo.size[1] - 1)]:
     ImageDraw.floodfill(fill, seed, 128)
-body = fill.point(lambda v: 0 if v == 128 else 255)
-body = body.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+body = fill.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.MinFilter(3))
+
+# The photo is small for a phone screen, so it is enlarged and sharpened here
+# (cleaner than letting the browser stretch it), with a smooth cut-out edge.
+big = (photo.size[0] * UPSCALE, photo.size[1] * UPSCALE)
+body = body.resize(big, Image.BICUBIC).filter(ImageFilter.GaussianBlur(1.6))
+body = body.point(lambda v: max(0, min(255, round((v - 140) * 3 + 128))))
 box = body.point(lambda v: 255 if v > 128 else 0).getbbox()
-skin = photo.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2)).convert("RGBA")
+skin = photo.resize(big, Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=2.2, percent=85, threshold=2)).convert("RGBA")
 skin.putalpha(body)
 skin = skin.crop(box)
-skin.save(os.path.join(OUT, "skin@3x.png"), optimize=True)
+skin.save(os.path.join(OUT, "skin.webp"), quality=92, method=6)
+k *= UPSCALE
 
 u = 480.0 / skin.size[0]               # layout units per photo pixel
 

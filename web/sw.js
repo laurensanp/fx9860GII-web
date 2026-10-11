@@ -1,9 +1,9 @@
 // Offline support. Online, files always come fresh from the network (and the
 // cache is refreshed); offline, the cached copies are used. Bump VERSION when
 // the file list changes.
-const VERSION = 'fx9860-v3';
+const VERSION = 'fx9860-v4';
 const FILES = [
-  './', 'index.html', 'app.js', 'fxweb.wasm', 'skin@3x.png', 'layout.json',
+  './', 'index.html', 'app.js', 'fxweb.wasm', 'skin.webp', 'layout.json',
   'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
 ];
 
