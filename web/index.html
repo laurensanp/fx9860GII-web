@@ -8,14 +8,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="fx-9860GII">
-<meta name="theme-color" content="#11161c">
+<meta name="theme-color" content="#3b434e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <style>
-  :root { --bg: #11161c; }
+  :root { --bg: #3b434e; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden;
+    background-image: radial-gradient(120% 75% at 50% 32%, #5d6775 0%, #3b434e 55%, #232931 100%);
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
     touch-action: none; font-family: -apple-system, system-ui, sans-serif; }
   /* Top: below the status bar. Bottom: the keys may reach down to the home indicator. */
@@ -23,12 +24,15 @@
     6px env(safe-area-inset-left); display: flex; align-items: center; justify-content: center; }
   #view { position: relative; flex: none; }
   #calc { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-  #skin { position: absolute; left: 0; top: 0; pointer-events: none; }
+  /* The shadow lifts the calculator off the background, so it reads as an object, not a pasted picture. */
+  #skin { position: absolute; left: 0; top: 0; pointer-events: none;
+    filter: drop-shadow(0 5px 9px rgba(0, 0, 0, 0.5)); }
   #glass { position: absolute; transition: background-color 0.15s; }
   #lcd { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
   .hit { position: absolute; border-radius: 14px; }
   .hit.pad { border-radius: 50%; }
-  .hit.on { background: rgba(255, 255, 255, 0.32); }
+  /* A pressed key darkens softly from its centre, without a visible box around it. */
+  .hit.on { background: radial-gradient(closest-side, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.2) 55%, rgba(0, 0, 0, 0) 100%); }
   /* "•••" menu button and turbo badge in the dark panel, next to "USB POWER GRAPHIC 2" */
   #menubtn { position: absolute; left: 380px; top: 297px; width: 58px; height: 32px; border-radius: 16px;
     display: flex; align-items: center; justify-content: center; gap: 4px; }

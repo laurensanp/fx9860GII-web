@@ -68,6 +68,11 @@ body = fill.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.MinFilter
 body = body.resize(photo.size, Image.BICUBIC).filter(ImageFilter.GaussianBlur(2.0))
 body = body.point(lambda v: max(0, min(255, round((v - 140) * 2.5 + 128))))
 box = body.point(lambda v: 255 if v > 128 else 0).getbbox()
+# The photo shows a lit screen; blank it, the app draws the real display there.
+blank = Image.new("L", photo.size, 0)
+ImageDraw.Draw(blank).rectangle([GLASS[0] * k - ORIGIN[0] * SCALE, GLASS[1] * k - ORIGIN[1] * SCALE,
+                                 GLASS[2] * k - ORIGIN[0] * SCALE, GLASS[3] * k - ORIGIN[1] * SCALE], fill=255)
+photo.paste(Image.new("RGB", photo.size, LCD_OFF), (0, 0), blank.filter(ImageFilter.GaussianBlur(1.2)))
 skin = photo.convert("RGBA")
 skin.putalpha(body)
 skin = skin.crop(box)
