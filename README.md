@@ -26,7 +26,8 @@ Neustart oder zum Löschen von Firmware und Daten. **Screenshot** teilt das Disp
 |---|---|
 | `fxweb/` | Rust-Crate, die den Emulator-Kern für WebAssembly exportiert |
 | `web/` | die fertige Web-App: `index.html`, `app.js`, `fxweb.wasm`, Skin, Icons, Manifest, Service Worker |
-| `build.sh` | baut `fxweb.wasm` und den Skin in dreifacher Auflösung neu |
+| `build.sh` | baut `fxweb.wasm` und den Skin neu |
+| `make_photo_skin.py`, `skin-photo.webp` | schneidet den Skin aus dem Foto des Rechners und legt die Tastenpositionen fest |
 
 `fxweb` bindet die Quelldateien aus `../fx9860-emulator/fxemu/src` direkt ein; beide
 Ordner müssen nebeneinander liegen.
@@ -37,8 +38,8 @@ Ordner müssen nebeneinander liegen.
 ./build.sh
 ```
 
-Voraussetzungen: Rust mit dem Ziel `wasm32-unknown-unknown`, Python 3 mit Pillow und die
-DejaVu-Schriften. Zum lokalen Testen genügt ein einfacher Webserver im Ordner `web/`,
+Voraussetzungen: Rust mit dem Ziel `wasm32-unknown-unknown`, Python 3 mit Pillow.
+Zum lokalen Testen genügt ein einfacher Webserver im Ordner `web/`,
 z. B. `python -m http.server`. Für das iPhone muss die Seite über HTTPS erreichbar sein,
 etwa über GitHub Pages. Nach Änderungen an den Dateien in `web/` die Konstante `VERSION`
 in `web/sw.js` erhöhen, damit installierte Apps die neue Fassung laden.
