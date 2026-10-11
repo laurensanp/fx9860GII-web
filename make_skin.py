@@ -189,15 +189,30 @@ def add(code, name, box):
     keys.append([code, name] + [round(v) for v in box])
 
 
-def pill(box, style, label, f, radius=None):
-    """A rounded key with a darker lip below and a soft highlight on top."""
+def key_shape(x0, y0, x1, y1, rt, rb, bow):
+    """Key outline as on the real calculator: nearly square at the top,
+    round at the bottom, with a slightly bulging lower edge."""
+    out = []
+    for cx, cy, r, a0 in ((x0 + rt, y0 + rt, rt, 180), (x1 - rt, y0 + rt, rt, 270), (x1 - rb, y1 - rb, rb, 0)):
+        out += [(cx + r * math.cos(math.radians(a0 + k)), cy + r * math.sin(math.radians(a0 + k))) for k in range(0, 91, 6)]
+    mid, half = (x0 + x1) / 2, (x1 - x0) / 2 - rb
+    out += [(mid + half * t / 10, y1 + bow * (1 - (t / 10) ** 2) ** 2) for t in range(9, -10, -1)]
+    out += [(x0 + rb + rb * math.cos(math.radians(90 + k)), y1 - rb + rb * math.sin(math.radians(90 + k))) for k in range(0, 91, 6)]
+    return out
+
+
+def pill(box, style, label, f, panel=False):
+    """A key with a darker lip below and a soft highlight on top."""
     face, lip, fg = STYLES[style]
     x0, y0, x1, y1 = box
-    r = radius if radius is not None else (y1 - y0) * 0.42
-    d.rounded_rectangle([x0 * S, (y0 + 3.2) * S, x1 * S, (y1 + 3.2) * S], radius=r * S, fill=lip)
-    d.rounded_rectangle([x0 * S, y0 * S, x1 * S, y1 * S], radius=r * S, fill=face)
-    d.rounded_rectangle([(x0 + 3) * S, (y0 + 1.5) * S, (x1 - 3) * S, (y0 + (y1 - y0) * 0.5) * S],
-                        radius=max(1, r - 3) * S, fill=shade(face, 1.3 if sum(face) < 200 else 1.05))
+    h = y1 - y0
+    rt = h * (0.20 if panel or style == "dark" else 0.28)
+    rb = h * (0.42 if panel else 0.47)
+    bow = 1.0 if panel else 1.6
+    d.polygon(pts(key_shape(x0, y0 + 3.2, x1, y1 + 3.2, rt, rb, bow)), fill=lip)
+    d.polygon(pts(key_shape(x0, y0, x1, y1, rt, rb, bow)), fill=face)
+    d.rounded_rectangle([(x0 + 3) * S, (y0 + 1.5) * S, (x1 - 3) * S, (y0 + h * 0.5) * S],
+                        radius=max(1, rt - 1.5) * S, fill=shade(face, 1.3 if sum(face) < 200 else 1.05))
     text((x0 + x1) / 2, (y0 + y1) / 2, label, f, fg)
 
 
@@ -262,7 +277,7 @@ for y0, y1, ly, row in ROWS:
             text(cx - 12, ly, "-LOCK", f_small, PANEL_LABEL, "lm")
         elif top:
             text(cx, ly, top, f_small, PANEL_LABEL)
-        pill((x0, y0, x1, y1), style, label, font("DejaVuSans-Bold.ttf", 10.5 if len(label) > 3 else 14), radius=9)
+        pill((x0, y0, x1, y1), style, label, font("DejaVuSans-Bold.ttf", 10.5 if len(label) > 3 else 14), panel=True)
         add(code, name, (x0 - 4, y0 - 5, x1 + 4, y1 + 7))
 
 # --- REPLAY pad ---
