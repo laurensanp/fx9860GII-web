@@ -5,8 +5,9 @@ web/skin.webp and web/layout.json (positions in 1x units, width 480).
     python3 make_photo_skin.py <photo> <output dir> [preview.png]
 
 skin-photo.webp is the product photo (2000 x 2000), used as it is: no
-enlargement, no sharpening, no redrawing. The positions below were measured
-in a 1932 px wide version of it.
+sharpening, no redrawing. It is only resampled to twice its size, so that the
+cut-out edge can be a smooth curve instead of pixel steps. The positions
+below were measured in a 1932 px wide version of it.
 """
 import json
 import os
@@ -59,15 +60,23 @@ near_white = ImageChops.multiply(ImageChops.multiply(*(c.point(lambda v: 255 if 
 fill = near_white.copy()
 for seed in [(0, 0), (photo.size[0] - 1, 0), (0, photo.size[1] - 1), (photo.size[0] - 1, photo.size[1] - 1)]:
     ImageDraw.floodfill(fill, seed, 128)
-body = fill.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.MinFilter(3))
-body = body.filter(ImageFilter.GaussianBlur(1.0))      # soft edge
-body = body.point(lambda v: max(0, min(255, round((v - 140) * 2.5 + 128))))
+body = fill.point(lambda v: 0 if v == 128 else 255)
+
+# Smooth edge: enlarge the cut-out mask, blur away its pixel steps, and cut it
+# again a little inside the outline (which also drops the pale fringe that the
+# white background leaves on the outermost pixels), with a soft transition.
+UP = 2
+big = (photo.size[0] * UP, photo.size[1] * UP)
+body = body.resize(big, Image.BICUBIC).filter(ImageFilter.GaussianBlur(5))
+body = body.point(lambda v: max(0, min(255, round((v - 222) * 5 + 128))))
+photo = photo.resize(big, Image.LANCZOS)
+k *= UP
 box = body.point(lambda v: 255 if v > 128 else 0).getbbox()
 # The photo shows a lit screen; blank it, the app draws the real display there.
 blank = Image.new("L", photo.size, 0)
 ImageDraw.Draw(blank).rectangle([GLASS[0] * k, GLASS[1] * k,
                                  GLASS[2] * k, GLASS[3] * k], fill=255)
-photo.paste(Image.new("RGB", photo.size, LCD_OFF), (0, 0), blank.filter(ImageFilter.GaussianBlur(1.2)))
+photo.paste(Image.new("RGB", photo.size, LCD_OFF), (0, 0), blank.filter(ImageFilter.GaussianBlur(1.5)))
 skin = photo.convert("RGBA")
 skin.putalpha(body)
 skin = skin.crop(box)
