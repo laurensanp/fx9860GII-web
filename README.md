@@ -38,7 +38,8 @@ Ordner müssen nebeneinander liegen.
 ./build.sh
 ```
 
-Voraussetzungen: Rust mit dem Ziel `wasm32-unknown-unknown`, Python 3 mit Pillow.
+Voraussetzungen: Rust mit dem Ziel `wasm32-unknown-unknown`, Python 3 mit Pillow, NumPy und SciPy sowie
+die Windows-Schriften Segoe UI, Cambria und Georgia (für die Tastenbeschriftung im Skin).
 Zum lokalen Testen genügt ein einfacher Webserver im Ordner `web/`,
 z. B. `python -m http.server`. Für das iPhone muss die Seite über HTTPS erreichbar sein,
 etwa über GitHub Pages. Nach Änderungen an den Dateien in `web/` die Konstante `VERSION`
