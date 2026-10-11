@@ -190,6 +190,12 @@ pub extern "C" fn fx_is_off() -> i32 {
     (e.cpu.sleeping && e.frame.iter().all(|&b| b == 0)) as i32
 }
 
+/// 1 while the display backlight is on (SHIFT + OPTN).
+#[no_mangle]
+pub extern "C" fn fx_backlight() -> i32 {
+    emu().cpu.bus.backlight() as i32
+}
+
 /// 1 while the CPU is idle (waiting for a key), so the page can save power.
 #[no_mangle]
 pub extern "C" fn fx_is_idle() -> i32 {

@@ -151,6 +151,8 @@ function frame(now) {
   } else {
     changed = fx.fx_run(hz * dt / 1000);
   }
+  const lit = !!fx.fx_backlight();
+  if (lit !== backlight) { setBacklight(lit); changed = 1; }
   if (changed) drawLcd();
   if (fx.fx_flash_take_dirty() && !flashSaveTimer) {
     flashSaveTimer = setTimeout(() => { flashSaveTimer = null; saveFlash(); }, 2000);
@@ -165,6 +167,16 @@ const lcd = $('lcd');
 const lctx = lcd.getContext('2d');
 const img = lctx.createImageData(128, 64);
 let onRGB = [42, 46, 40], offRGB = [183, 191, 168];
+let backlight = false;
+
+// The backlight (SHIFT + OPTN) turns the grey-green display blue.
+function setBacklight(lit) {
+  backlight = lit;
+  onRGB = hexRGB(lit ? layout.lcd_on_lit : layout.lcd_on);
+  offRGB = hexRGB(lit ? layout.lcd_off_lit : layout.lcd_off);
+  $('glass').style.background = lit ? layout.lcd_off_lit : layout.lcd_off;
+  $('calc').classList.toggle('lit', lit);
+}
 
 function hexRGB(h) { return [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16)); }
 
@@ -229,7 +241,8 @@ function press(el, code, down) {
 
 async function buildUi() {
   layout = await (await fetch('layout.json')).json();
-  onRGB = hexRGB(layout.lcd_on); offRGB = hexRGB(layout.lcd_off);
+  place($('glass'), ...layout.glass);
+  setBacklight(false);
   const calc = $('calc');
   calc.style.width = $('skin').style.width = layout.w + 'px';
   calc.style.height = $('skin').style.height = layout.h + 'px';

@@ -24,6 +24,7 @@
   #view { position: relative; flex: none; }
   #calc { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
   #skin { position: absolute; left: 0; top: 0; pointer-events: none; }
+  #glass { position: absolute; transition: background-color 0.15s; }
   #lcd { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
   .hit { position: absolute; border-radius: 14px; }
   .hit.pad { border-radius: 50%; }
@@ -40,6 +41,7 @@
   #lcdmsg { position: absolute; display: none; align-items: center; justify-content: center; text-align: center;
     padding: 0 30px; font-size: 17px; line-height: 1.4; color: #4d5446; }
   #lcdmsg.show { display: flex; }
+  .lit #lcdmsg { color: #2c3d5c; }
   /* Pop-up menu in the calculator's style: dark panel, key-like entries */
   #pop { position: absolute; left: 238px; top: 336px; width: 200px; padding: 12px; border-radius: 16px;
     background: #28292b; border: 2px solid #18181a; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
@@ -79,6 +81,7 @@
   <div id="view">
     <div id="calc">
       <img id="skin" src="skin@3x.png" alt="">
+      <div id="glass"></div>
       <canvas id="lcd" width="128" height="64"></canvas>
       <div id="lcdmsg"></div>
       <div id="turbobadge">TURBO</div>

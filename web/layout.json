@@ -7,8 +7,16 @@
   408,
   204
  ],
+ "glass": [
+  30,
+  108,
+  420,
+  224
+ ],
  "lcd_on": "#2A2E28",
  "lcd_off": "#B7BFA8",
+ "lcd_on_lit": "#12182C",
+ "lcd_off_lit": "#A4CAF0",
  "menu": [
   398,
   347,

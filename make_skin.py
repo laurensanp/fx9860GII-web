@@ -10,7 +10,7 @@ import math
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 OUT, FONTS = sys.argv[1], sys.argv[2]
 W, H = 480, 1015          # 1x units
@@ -22,8 +22,10 @@ CX = W / 2
 # --- colours, taken from the product photo ---
 SHELL = (44, 46, 51)
 SILVER_TOP, SILVER_BOTTOM = (220, 222, 224), (198, 200, 203)
-PANEL = (26, 26, 28)
+PANEL = (34, 34, 37)          # matte lower part of the black panel
+HOUSING = (12, 12, 14)        # glossy display housing
 LCD_ON, LCD_OFF = (42, 46, 40), (183, 191, 168)   # backlight off
+LCD_ON_LIT, LCD_OFF_LIT = (18, 24, 44), (164, 202, 240)   # backlight on (SHIFT + OPTN)
 BRAND = (52, 54, 58)
 PANEL_LABEL = (204, 178, 128)
 GOLD = (170, 128, 62)
@@ -57,14 +59,15 @@ def text(x, y, s, f, fill, anchor="mm"):
     d.text((x * S, y * S), s, font=f, fill=fill, anchor=anchor)
 
 
-def smooth(ctrl, y):
-    """Half-width at height y, eased between the control points [(y, hw), ...]."""
+def smooth(ctrl, y, ease=True):
+    """Value at height y between the control points [(y, value), ...]: eased, or straight lines."""
     if y <= ctrl[0][0]:
         return ctrl[0][1]
     for (y0, a), (y1, b) in zip(ctrl, ctrl[1:]):
         if y <= y1:
             t = (y - y0) / (y1 - y0)
-            t = t * t * (3 - 2 * t)
+            if ease:
+                t = t * t * (3 - 2 * t)
             return a + (b - a) * t
     return ctrl[-1][1]
 
@@ -97,27 +100,46 @@ def fill_gradient(poly, top, bottom):
     img.paste(grad.resize(img.size), (0, 0), mask)
 
 
+def poly_mask(poly):
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).polygon(pts(poly), fill=255)
+    return mask
+
+
+def bevel(poly, depth, strength):
+    """Darken a shape towards its edges, so it reads as a rounded surface."""
+    mask = poly_mask(poly)
+    small = mask.resize((img.size[0] // 4, img.size[1] // 4), Image.BILINEAR)
+    soft = small.filter(ImageFilter.GaussianBlur(depth * S / 4)).resize(img.size, Image.BILINEAR)
+    edge = ImageChops.multiply(mask, ImageChops.invert(soft)).point(lambda v: min(255, round(v * 2 * strength)))
+    img.paste(Image.new("RGBA", img.size, (60, 62, 68, 255)), (0, 0), edge)
+
+
 def shade(c, k):
     return tuple(max(0, min(255, round(v * k))) for v in c)
 
 
-# --- body: full width around the display, tapering beside the upper keys.
-# The silver faceplate pulls in further below the panel, which leaves the
-# black shell visible as a trim on both sides. ---
-SHELL_CTRL = [(0, 240), (340, 240), (530, 220), (660, 219), (1015, 223)]
-TRIM_CTRL = [(0, 0), (500, 0), (604, 18), (690, 18), (960, 4), (1015, 2)]
+# --- body: full width around the display, then one straight, gentle taper
+# down to the lower keyboard. The silver faceplate pulls in below the panel
+# and runs straight back out to the bottom, which leaves the black shell
+# visible as a trim on both sides. ---
+SHELL_CTRL = [(0, 240), (300, 240), (640, 221), (1015, 221)]
 
 
 def shell_hw(y):
-    return smooth(SHELL_CTRL, y)
+    return smooth(SHELL_CTRL, y, ease=False)
 
 
 def face_hw(y):
-    return shell_hw(y) - smooth(TRIM_CTRL, y)
+    if y <= 606:
+        return shell_hw(y) - smooth([(0, 0), (520, 0), (606, 18)], y)
+    return shell_hw(y) - smooth([(606, 18), (1015, 2)], y, ease=False)
 
 
 d.polygon(pts(outline(shell_hw, 0, H, 46, 58)), fill=SHELL)
-fill_gradient(outline(face_hw, 0, 1013, 46, 56), SILVER_TOP, SILVER_BOTTOM)
+FACE = outline(face_hw, 0, 1013, 46, 56)
+fill_gradient(FACE, SILVER_TOP, SILVER_BOTTOM)
+bevel(FACE, 9, 0.55)
 
 # Brand
 x = 44
@@ -131,9 +153,20 @@ model = model.transform(model.size, Image.AFFINE, (1, 0.25, -6 * S, 0, 1, 0), re
 img.paste(model, (round(318 * S), round(19 * S)), model)
 
 # --- black upper panel with the screen ---
-PANEL_CTRL = [(68, 221), (345, 221), (440, 215), (535, 197), (598, 196)]
-d.polygon(pts(outline(lambda y: smooth(PANEL_CTRL, y), 68, 598, 28, 40)), fill=PANEL)
-d.rounded_rectangle([24 * S, 74 * S, 456 * S, 344 * S], radius=24 * S, fill=(10, 10, 11))
+PANEL_CTRL = [(68, 221), (300, 221), (598, 196)]
+PANEL_POLY = outline(lambda y: smooth(PANEL_CTRL, y, ease=False), 68, 598, 28, 40)
+d.polygon(pts(PANEL_POLY), fill=PANEL)
+
+
+def housing(dy, colour):
+    """The display housing: the top of the panel, down to a shallow curved edge."""
+    edge = [(x, 350 + dy + 24 * (1 - ((x - CX) / 240) ** 2)) for x in range(0, W + 1, 4)]
+    cut = poly_mask([(0, 0), (W, 0)] + list(reversed(edge)))
+    img.paste(Image.new("RGBA", img.size, colour + (255,)), (0, 0), ImageChops.multiply(poly_mask(PANEL_POLY), cut))
+
+
+housing(1.4, (74, 76, 82))      # light catching the lower edge
+housing(0, HOUSING)
 # LCD glass, a little larger than the 128x64 pixel area and in the same colour
 GLASS = (30, 108, 450, 332)
 LCD = (36, 118, 408, 204)           # x, y, w, h of the pixel area
@@ -164,7 +197,7 @@ def pill(box, style, label, f, radius=None):
     d.rounded_rectangle([x0 * S, (y0 + 3.2) * S, x1 * S, (y1 + 3.2) * S], radius=r * S, fill=lip)
     d.rounded_rectangle([x0 * S, y0 * S, x1 * S, y1 * S], radius=r * S, fill=face)
     d.rounded_rectangle([(x0 + 3) * S, (y0 + 1.5) * S, (x1 - 3) * S, (y0 + (y1 - y0) * 0.5) * S],
-                        radius=max(1, r - 3) * S, fill=shade(face, 1.05))
+                        radius=max(1, r - 3) * S, fill=shade(face, 1.3 if sum(face) < 200 else 1.05))
     text((x0 + x1) / 2, (y0 + y1) / 2, label, f, fg)
 
 
@@ -204,29 +237,47 @@ for i, (cx, lab) in enumerate(zip(FX, ["Trace", "Zoom", "V-Window", "Sketch", "G
 # --- SHIFT / OPTN / VARS / MENU and ALPHA / x² / ^ / EXIT ---
 COLS = [(54, 105), (116, 167), (178, 229), (240, 291)]
 ROWS = [
-    (487, 520, 476, [(0x81, "SHIFT", "SHIFT", "shift", ""), (0x82, "OPTN", "OPTN", "dark", "☀ LIGHT"),
+    (487, 520, 476, [(0x81, "SHIFT", "SHIFT", "shift", ""), (0x82, "OPTN", "OPTN", "dark", "LIGHT"),
                      (0x83, "VARS", "VARS", "dark", "PRGM"), (0x84, "MENU", "MENU", "menu", "SET UP")]),
     (541, 574, 531, [(0x71, "ALPHA", "ALPHA", "alpha", "A-LOCK"), (0x72, "SQUARE", "x²", "dark", "√      r"),
                      (0x73, "POWER", "^", "dark", "ˣ√      θ"), (0x74, "EXIT", "EXIT", "dark", "QUIT")]),
 ]
+
+
+def boxed(cx, cy, s):
+    """A panel label in dark letters on a gold box."""
+    w = d.textlength(s, font=f_small) / S + 5
+    d.rounded_rectangle([(cx - w / 2) * S, (cy - 5.5) * S, (cx + w / 2) * S, (cy + 5.5) * S], radius=1.5 * S, fill=PANEL_LABEL)
+    text(cx, cy, s, f_small, PANEL)
+
+
 for y0, y1, ly, row in ROWS:
     for (x0, x1), (code, name, label, style, top) in zip(COLS, row):
-        if top:
-            text((x0 + x1) / 2, ly, top, f_small, PANEL_LABEL)
+        cx = (x0 + x1) / 2
+        if top == "LIGHT":      # cyan sun, "LIGHT" on a gold box
+            text(cx - 22, ly, "☀", font("DejaVuSans.ttf", 12), (96, 204, 226))
+            boxed(cx + 7, ly, "LIGHT")
+        elif top == "A-LOCK":   # boxed A
+            boxed(cx - 18, ly, "A")
+            text(cx - 12, ly, "-LOCK", f_small, PANEL_LABEL, "lm")
+        elif top:
+            text(cx, ly, top, f_small, PANEL_LABEL)
         pill((x0, y0, x1, y1), style, label, font("DejaVuSans-Bold.ttf", 10.5 if len(label) > 3 else 14), radius=9)
         add(code, name, (x0 - 4, y0 - 5, x1 + 4, y1 + 7))
 
 # --- REPLAY pad ---
 px, py, R = 368, 530, 56
-d.ellipse([(px - R - 3) * S, (py - R - 2) * S, (px + R + 3) * S, (py + R + 5) * S], fill=(4, 4, 5))
-d.ellipse([(px - R) * S, (py - R) * S, (px + R) * S, (py + R) * S], fill=(176, 178, 182))
-d.ellipse([(px - R + 5) * S, (py - R + 3) * S, (px + R - 5) * S, (py + R - 8) * S], fill=(196, 198, 202))
-text(px, py, "REPLAY", font("DejaVuSans.ttf", 9.5), (132, 134, 140))
+d.ellipse([(px - R - 2.5) * S, (py - R - 2) * S, (px + R + 2.5) * S, (py + R + 4) * S], fill=(6, 6, 7))
+d.ellipse([(px - R) * S, (py - R) * S, (px + R) * S, (py + R) * S], fill=(168, 170, 175))
+d.ellipse([(px - R + 1.5) * S, (py - R + 1) * S, (px + R - 1.5) * S, (py + R - 3) * S], fill=(210, 212, 215))
+d.ellipse([(px - R + 14) * S, (py - R + 14) * S, (px + R - 14) * S, (py + R - 14) * S], fill=(200, 202, 206))
+d.ellipse([(px - R + 15) * S, (py - R + 15.5) * S, (px + R - 15) * S, (py + R - 14) * S], fill=(214, 216, 219))
+text(px, py, "REPLAY", font("DejaVuSans.ttf", 9), (150, 152, 158))
 for ang, (code, name) in zip((90, 270, 180, 0), [(0x86, "UP"), (0x75, "DOWN"), (0x85, "LEFT"), (0x76, "RIGHT")]):
     a = math.radians(ang)
-    tx, ty = px + math.cos(a) * (R - 12), py - math.sin(a) * (R - 12)
-    tri = [(tx + math.cos(a + math.radians(k)) * 5.5, ty - math.sin(a + math.radians(k)) * 5.5) for k in (0, 140, 220)]
-    d.polygon(pts(tri), fill=(140, 142, 148))
+    tx, ty = px + math.cos(a) * (R - 8), py - math.sin(a) * (R - 8)
+    tri = [(tx + math.cos(a + math.radians(k)) * 4.2, ty - math.sin(a + math.radians(k)) * 4.2) for k in (0, 130, 230)]
+    d.polygon(pts(tri), fill=(150, 152, 158))
     zx, zy = px + math.cos(a) * (R - 22), py - math.sin(a) * (R - 22)
     add(code, name, (zx - 23, zy - 23, zx + 23, zy + 23))
 
@@ -281,7 +332,9 @@ final.save(os.path.join(OUT, "skin@3x.png"), optimize=True)
 layout = {
     "w": W, "h": H,
     "lcd": list(LCD),
+    "glass": [GLASS[0], GLASS[1], GLASS[2] - GLASS[0], GLASS[3] - GLASS[1]],
     "lcd_on": "#%02X%02X%02X" % LCD_ON, "lcd_off": "#%02X%02X%02X" % LCD_OFF,
+    "lcd_on_lit": "#%02X%02X%02X" % LCD_ON_LIT, "lcd_off_lit": "#%02X%02X%02X" % LCD_OFF_LIT,
     "menu": [398, 347, 56, 30],       # the "..." button, right of "USB POWER GRAPHIC"
     "badge": [30, 352],               # the TURBO badge, left of it
     "pop": [244, 380, 200],           # x, y, width of the pop-up menu
