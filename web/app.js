@@ -208,31 +208,17 @@ function place(el, x, y, w, h) {
   el.style.width = w + 'px'; el.style.height = h + 'px';
 }
 
-// Which part of the skin to show. Phones are tall and narrow, so there the
-// brand row and the bottom margin are left out and the keys fill the width.
-function crops() {
-  const bottom = Math.max(...layout.keys.map((k) => k[5])) + 12;
-  return [
-    [6, 4, layout.w - 6, bottom],      // whole calculator face with the CASIO row
-    [10, 60, layout.w - 10, bottom],   // from the display panel down
-  ];
-}
-
+// The whole calculator is shown, scaled to fit the screen.
 function fit() {
   const stage = $('stage');
   const cs = getComputedStyle(stage);
   const w = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const h = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  const [full, panel] = crops().map(([x0, y0, x1, y1]) => ({ x0, y0, cw: x1 - x0, ch: y1 - y0 }));
-  const scaleOf = (c) => Math.min(w / c.cw, h / c.ch);
-  // Keep the CASIO row unless dropping it makes the calculator clearly bigger.
-  const c = scaleOf(panel) > scaleOf(full) * 1.04 ? panel : full;
-  const s = scaleOf(c);
+  const s = Math.min(w / layout.w, h / layout.h);
   const view = $('view');
-  view.style.width = c.cw * s + 'px';
-  view.style.height = c.ch * s + 'px';
-  view.style.borderRadius = c === panel ? 30 * s + 'px' : 34 * s + 'px';
-  $('calc').style.transform = `scale(${s}) translate(${-c.x0}px, ${-c.y0}px)`;
+  view.style.width = layout.w * s + 'px';
+  view.style.height = layout.h * s + 'px';
+  $('calc').style.transform = `scale(${s})`;
 }
 
 function press(el, code, down) {
@@ -245,8 +231,16 @@ async function buildUi() {
   layout = await (await fetch('layout.json')).json();
   onRGB = hexRGB(layout.lcd_on); offRGB = hexRGB(layout.lcd_off);
   const calc = $('calc');
+  calc.style.width = $('skin').style.width = layout.w + 'px';
+  calc.style.height = $('skin').style.height = layout.h + 'px';
   place(lcd, ...layout.lcd);
   place($('lcdmsg'), ...layout.lcd);
+  place($('menubtn'), ...layout.menu);
+  $('turbobadge').style.left = layout.badge[0] + 'px';
+  $('turbobadge').style.top = layout.badge[1] + 'px';
+  $('pop').style.left = layout.pop[0] + 'px';
+  $('pop').style.top = layout.pop[1] + 'px';
+  $('pop').style.width = layout.pop[2] + 'px';
 
   for (const [code, name, x0, y0, x1, y1] of layout.keys) {
     const el = document.createElement('div');

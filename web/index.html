@@ -21,11 +21,11 @@
   /* Top: below the status bar. Bottom: the keys may reach down to the home indicator. */
   #stage { position: fixed; inset: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right)
     6px env(safe-area-inset-left); display: flex; align-items: center; justify-content: center; }
-  #view { position: relative; overflow: hidden; flex: none; }
-  #calc { position: absolute; left: 0; top: 0; width: 460px; height: 1022px; transform-origin: 0 0; }
-  #skin { position: absolute; inset: 0; width: 460px; height: 1022px; pointer-events: none; }
+  #view { position: relative; flex: none; }
+  #calc { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #skin { position: absolute; left: 0; top: 0; pointer-events: none; }
   #lcd { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
-  .hit { position: absolute; border-radius: 9px; }
+  .hit { position: absolute; border-radius: 14px; }
   .hit.pad { border-radius: 50%; }
   .hit.on { background: rgba(255, 255, 255, 0.32); }
   /* "•••" menu button and turbo badge in the dark panel, next to "USB POWER GRAPHIC 2" */
@@ -38,7 +38,7 @@
   #turbobadge.show { display: block; }
   /* Messages shown on the (blank) display, e.g. while switched off */
   #lcdmsg { position: absolute; display: none; align-items: center; justify-content: center; text-align: center;
-    padding: 0 30px; font-size: 16px; line-height: 1.4; color: #4d5446; }
+    padding: 0 30px; font-size: 17px; line-height: 1.4; color: #2c3d5c; }
   #lcdmsg.show { display: flex; }
   /* Pop-up menu in the calculator's style: dark panel, key-like entries */
   #pop { position: absolute; left: 238px; top: 336px; width: 200px; padding: 12px; border-radius: 16px;
