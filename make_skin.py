@@ -1,6 +1,6 @@
 """Draws the web app's calculator skin, modelled on the real fx-9860GII:
-waisted body with black side trim, black upper panel with the blue backlit
-LCD, shield-shaped F-keys, pill-shaped keys. Writes web/skin@3x.png (with
+body tapering below the display, black side trim, black upper panel with the
+LCD (backlight off), shield-shaped F-keys, pill-shaped keys. Writes web/skin@3x.png (with
 transparent corners) and web/layout.json (positions in 1x units).
 
     python3 make_skin.py <output dir> <font dir>
@@ -20,11 +20,10 @@ S = OUT_SCALE * SS
 CX = W / 2
 
 # --- colours, taken from the product photo ---
-SHELL = (24, 25, 28)
+SHELL = (44, 46, 51)
 SILVER_TOP, SILVER_BOTTOM = (220, 222, 224), (198, 200, 203)
-PANEL = (20, 20, 22)
-LCD_GLASS_TOP, LCD_GLASS_BOTTOM = (150, 192, 236), (178, 212, 244)
-LCD_ON, LCD_OFF = (18, 24, 44), (164, 202, 240)
+PANEL = (26, 26, 28)
+LCD_ON, LCD_OFF = (42, 46, 40), (183, 191, 168)   # backlight off
 BRAND = (52, 54, 58)
 PANEL_LABEL = (204, 178, 128)
 GOLD = (170, 128, 62)
@@ -70,12 +69,12 @@ def smooth(ctrl, y):
     return ctrl[-1][1]
 
 
-def outline(ctrl, y0, y1, r_top, r_bot):
-    """Polygon of a symmetric shape with eased sides and rounded corners."""
+def outline(half, y0, y1, r_top, r_bot):
+    """Polygon of a symmetric shape with half-width half(y) and rounded corners."""
     right = []
     y = y0
     while y <= y1 + 1e-6:
-        hw = smooth(ctrl, y)
+        hw = half(y)
         if y - y0 < r_top:
             k = r_top - (y - y0)
             hw -= r_top - math.sqrt(max(0.0, r_top * r_top - k * k))
@@ -102,11 +101,23 @@ def shade(c, k):
     return tuple(max(0, min(255, round(v * k))) for v in c)
 
 
-# --- body: black shell, silver faceplate on top (narrower below the waist) ---
-SHELL_CTRL = [(0, 240), (330, 240), (624, 228), (900, 233), (1015, 236)]
-FACE_CTRL = [(0, 240), (330, 240), (470, 237), (624, 215), (900, 218), (1005, 221)]
-d.polygon(pts(outline(SHELL_CTRL, 0, H, 40, 52)), fill=SHELL)
-fill_gradient(outline(FACE_CTRL, 0, 1005, 40, 46), SILVER_TOP, SILVER_BOTTOM)
+# --- body: full width around the display, tapering beside the upper keys.
+# The silver faceplate pulls in further below the panel, which leaves the
+# black shell visible as a trim on both sides. ---
+SHELL_CTRL = [(0, 240), (340, 240), (530, 220), (660, 219), (1015, 223)]
+TRIM_CTRL = [(0, 0), (500, 0), (604, 18), (690, 18), (960, 4), (1015, 2)]
+
+
+def shell_hw(y):
+    return smooth(SHELL_CTRL, y)
+
+
+def face_hw(y):
+    return shell_hw(y) - smooth(TRIM_CTRL, y)
+
+
+d.polygon(pts(outline(shell_hw, 0, H, 46, 58)), fill=SHELL)
+fill_gradient(outline(face_hw, 0, 1013, 46, 56), SILVER_TOP, SILVER_BOTTOM)
 
 # Brand
 x = 44
@@ -120,15 +131,13 @@ model = model.transform(model.size, Image.AFFINE, (1, 0.25, -6 * S, 0, 1, 0), re
 img.paste(model, (round(318 * S), round(19 * S)), model)
 
 # --- black upper panel with the screen ---
-PANEL_CTRL = [(70, 227), (360, 227), (470, 224), (560, 208), (596, 208)]
-d.polygon(pts(outline(PANEL_CTRL, 70, 596, 30, 50)), fill=PANEL)
-d.rounded_rectangle([20 * S, 78 * S, 460 * S, 340 * S], radius=26 * S, fill=(8, 8, 9))
-# LCD glass (blue backlight), a little larger than the 128x64 pixel area
-GLASS = (28, 108, 452, 332)
+PANEL_CTRL = [(68, 221), (345, 221), (440, 215), (535, 197), (598, 196)]
+d.polygon(pts(outline(lambda y: smooth(PANEL_CTRL, y), 68, 598, 28, 40)), fill=PANEL)
+d.rounded_rectangle([24 * S, 74 * S, 456 * S, 344 * S], radius=24 * S, fill=(10, 10, 11))
+# LCD glass, a little larger than the 128x64 pixel area and in the same colour
+GLASS = (30, 108, 450, 332)
 LCD = (36, 118, 408, 204)           # x, y, w, h of the pixel area
-fill_gradient([(GLASS[0], GLASS[1]), (GLASS[2], GLASS[1]), (GLASS[2], GLASS[3]), (GLASS[0], GLASS[3])],
-              LCD_GLASS_TOP, LCD_GLASS_BOTTOM)
-d.rectangle([LCD[0] * S, LCD[1] * S, (LCD[0] + LCD[2]) * S - 1, (LCD[1] + LCD[3]) * S - 1], fill=LCD_OFF)
+d.rectangle([GLASS[0] * S, GLASS[1] * S, GLASS[2] * S - 1, GLASS[3] * S - 1], fill=LCD_OFF)
 
 # "USB POWER GRAPHIC"
 f_usb = font("DejaVuSans-BoldOblique.ttf" if os.path.exists(os.path.join(FONTS, "DejaVuSans-BoldOblique.ttf"))
@@ -186,18 +195,18 @@ def shield(cx, y0, w, h, style, label, f):
 # --- F-keys ---
 f_small = font("DejaVuSans-Bold.ttf", 8.5)
 f_fkey = font("DejaVuSans-Bold.ttf", 13)
-FX = [75, 141, 205, 270, 334, 399]
+FX = [78, 143, 208, 272, 337, 402]
 for i, (cx, lab) in enumerate(zip(FX, ["Trace", "Zoom", "V-Window", "Sketch", "G-Solv", "G↔T"])):
-    text(cx, 394, lab, f_small, PANEL_LABEL)
-    shield(cx, 408, 50, 52, "fkey", f"F{i + 1}", f_fkey)
-    add(0x91 + i, f"F{i + 1}", (cx - 28, 404, cx + 28, 466))
+    text(cx, 391, lab, f_small, PANEL_LABEL)
+    shield(cx, 404, 50, 52, "fkey", f"F{i + 1}", f_fkey)
+    add(0x91 + i, f"F{i + 1}", (cx - 28, 400, cx + 28, 462))
 
 # --- SHIFT / OPTN / VARS / MENU and ALPHA / x² / ^ / EXIT ---
-COLS = [(46, 101), (113, 167), (178, 232), (243, 296)]
+COLS = [(54, 105), (116, 167), (178, 229), (240, 291)]
 ROWS = [
-    (492, 526, 481, [(0x81, "SHIFT", "SHIFT", "shift", ""), (0x82, "OPTN", "OPTN", "dark", "☀ LIGHT"),
+    (487, 520, 476, [(0x81, "SHIFT", "SHIFT", "shift", ""), (0x82, "OPTN", "OPTN", "dark", "☀ LIGHT"),
                      (0x83, "VARS", "VARS", "dark", "PRGM"), (0x84, "MENU", "MENU", "menu", "SET UP")]),
-    (548, 582, 538, [(0x71, "ALPHA", "ALPHA", "alpha", "A-LOCK"), (0x72, "SQUARE", "x²", "dark", "√      r"),
+    (541, 574, 531, [(0x71, "ALPHA", "ALPHA", "alpha", "A-LOCK"), (0x72, "SQUARE", "x²", "dark", "√      r"),
                      (0x73, "POWER", "^", "dark", "ˣ√      θ"), (0x74, "EXIT", "EXIT", "dark", "QUIT")]),
 ]
 for y0, y1, ly, row in ROWS:
@@ -208,7 +217,7 @@ for y0, y1, ly, row in ROWS:
         add(code, name, (x0 - 4, y0 - 5, x1 + 4, y1 + 7))
 
 # --- REPLAY pad ---
-px, py, R = 366, 527, 58
+px, py, R = 368, 530, 56
 d.ellipse([(px - R - 3) * S, (py - R - 2) * S, (px + R + 3) * S, (py + R + 5) * S], fill=(4, 4, 5))
 d.ellipse([(px - R) * S, (py - R) * S, (px + R) * S, (py + R) * S], fill=(176, 178, 182))
 d.ellipse([(px - R + 5) * S, (py - R + 3) * S, (px + R - 5) * S, (py + R - 8) * S], fill=(196, 198, 202))
@@ -223,27 +232,27 @@ for ang, (code, name) in zip((90, 270, 180, 0), [(0x86, "UP"), (0x75, "DOWN"), (
 
 # --- lower keyboard ---
 LOWER = [
-    (624, 658, 614, [73, 139, 204, 268, 333, 398], 54,
+    (624, 658, 614, [78, 143, 208, 272, 337, 402], 52,
      [(0x61, "XOT", "X,θ,T", "dark", "∠", "A"), (0x62, "LOG", "log", "dark", "10ˣ", "B"),
       (0x63, "LN", "ln", "dark", "eˣ", "C"), (0x64, "SIN", "sin", "dark", "sin⁻¹", "D"),
       (0x65, "COS", "cos", "dark", "cos⁻¹", "E"), (0x66, "TAN", "tan", "dark", "tan⁻¹", "F")]),
-    (679, 713, 669, [73, 139, 204, 268, 333, 398], 54,
+    (679, 713, 669, [78, 143, 208, 272, 337, 402], 52,
      [(0x51, "FRAC", "a b/c", "dark", "", "G"), (0x52, "FD", "F↔D", "dark", "", "H"),
       (0x53, "LEFTP", "(", "dark", "∛", "I"), (0x54, "RIGHTP", ")", "dark", "x⁻¹", "J"),
       (0x55, "COMMA", ",", "dark", "", "K"), (0x56, "ARROW", "→", "dark", "", "L")]),
-    (743, 784, 731, [78, 156, 234, 313, 391], 67,
+    (743, 784, 731, [84, 162, 240, 318, 396], 64,
      [(0x41, "7", "7", "light", "CAPTURE", "M"), (0x42, "8", "8", "light", "CLIP", "N"),
       (0x43, "9", "9", "light", "PASTE", "O"), (0x44, "DEL", "DEL", "grey", "INS", "UNDO"),
       (0x07, "ACON", "AC/ON", "grey", "", "OFF")]),
-    (808, 849, 796, [78, 156, 234, 313, 391], 67,
+    (808, 849, 796, [84, 162, 240, 318, 396], 64,
      [(0x31, "4", "4", "light", "CATALOG", "P"), (0x32, "5", "5", "light", "", "Q"),
       (0x33, "6", "6", "light", "", "R"), (0x34, "MUL", "×", "light", "{", "S"),
       (0x35, "DIV", "÷", "light", "}", "T")]),
-    (874, 915, 862, [78, 156, 234, 313, 391], 67,
+    (874, 915, 862, [84, 162, 240, 318, 396], 64,
      [(0x21, "1", "1", "light", "List", "U"), (0x22, "2", "2", "light", "Mat", "V"),
       (0x23, "3", "3", "light", "", "W"), (0x24, "ADD", "+", "light", "[", "X"),
       (0x25, "SUB", "−", "light", "]", "Y")]),
-    (941, 982, 929, [78, 156, 234, 313, 391], 67,
+    (941, 982, 929, [84, 162, 240, 318, 396], 64,
      [(0x11, "0", "0", "light", "i", "Z"), (0x12, "DOT", "•", "light", "=", "SPACE"),
       (0x13, "EXP", "EXP", "light", "π", "\""), (0x14, "NEG", "(−)", "light", "Ans", ""),
       (0x15, "EXE", "EXE", "exe", "↵", "")]),
@@ -263,7 +272,7 @@ for y0, y1, ly, centres, kw, row in LOWER:
         else:
             f = font("DejaVuSans-Bold.ttf", 14.5)
         pill((x0, y0, x1, y1), style, label, f)
-        gap = 5 if len(row) == 6 else 5.5
+        gap = 6 if len(row) == 6 else 7
         add(code, name, (x0 - gap, y0 - 6, x1 + gap, y1 + 8))
 
 # --- write ---
