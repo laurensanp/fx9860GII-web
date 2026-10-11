@@ -4,7 +4,9 @@ web/skin.webp and web/layout.json (positions in 1x units, width 480).
 
     python3 make_photo_skin.py <photo> <output dir> [preview.png]
 
-The positions below are measured in the photo, in a 1932 px wide version of it.
+skin-photo.webp is a product photo (2000 x 2000), cropped to the calculator
+and enlarged 2x with Real-ESRGAN. The positions below were measured in a
+1932 px wide version of the original photo.
 """
 import json
 import os
@@ -13,8 +15,10 @@ import sys
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 PHOTO, OUT = sys.argv[1], sys.argv[2]
-REF = 1932.0
-UPSCALE = 2
+REF = 1932.0                           # width of the photo the positions were measured in
+ORIGINAL = 2000.0                      # width of the original photo
+ORIGIN = (530, 90)                     # top left of the crop in the original photo
+SCALE = 2                              # enlargement of the crop
 
 GLASS = (615, 310, 1312, 695)          # x0, y0, x1, y1 of the LCD glass
 LCD = (648, 341, 632, 316)             # x, y, w, h of the 128x64 pixel area
@@ -49,38 +53,35 @@ for code, name, dx, dy in [(0x86, "UP", 0, -1), (0x75, "DOWN", 0, 1), (0x85, "LE
     keys.append([code, name, cx - 40, cy - 40, cx + 40, cy + 40])
 
 photo = Image.open(PHOTO).convert("RGB")
-k = photo.size[0] / REF                # photo pixels per reference pixel
+k = ORIGINAL / REF * SCALE             # photo pixels per reference pixel
 
 # Background: everything near-white that is connected to the image border.
-r, g, b = photo.split()
+# Found at half size (fast), then enlarged and smoothed for a clean edge.
+small = photo.resize((photo.size[0] // 2, photo.size[1] // 2), Image.BILINEAR)
+r, g, b = small.split()
 near_white = ImageChops.multiply(ImageChops.multiply(*(c.point(lambda v: 255 if v > 236 else 0) for c in (r, g))),
                                  b.point(lambda v: 255 if v > 236 else 0))
 fill = near_white.copy()
-for seed in [(0, 0), (photo.size[0] - 1, 0), (0, photo.size[1] - 1), (photo.size[0] - 1, photo.size[1] - 1)]:
+for seed in [(0, 0), (small.size[0] - 1, 0), (0, small.size[1] - 1), (small.size[0] - 1, small.size[1] - 1)]:
     ImageDraw.floodfill(fill, seed, 128)
 body = fill.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.MinFilter(3))
-
-# The photo is small for a phone screen, so it is enlarged and sharpened here
-# (cleaner than letting the browser stretch it), with a smooth cut-out edge.
-big = (photo.size[0] * UPSCALE, photo.size[1] * UPSCALE)
-body = body.resize(big, Image.BICUBIC).filter(ImageFilter.GaussianBlur(1.6))
-body = body.point(lambda v: max(0, min(255, round((v - 140) * 3 + 128))))
+body = body.resize(photo.size, Image.BICUBIC).filter(ImageFilter.GaussianBlur(2.0))
+body = body.point(lambda v: max(0, min(255, round((v - 140) * 2.5 + 128))))
 box = body.point(lambda v: 255 if v > 128 else 0).getbbox()
-skin = photo.resize(big, Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=2.2, percent=85, threshold=2)).convert("RGBA")
+skin = photo.convert("RGBA")
 skin.putalpha(body)
 skin = skin.crop(box)
 skin.save(os.path.join(OUT, "skin.webp"), quality=92, method=6)
-k *= UPSCALE
 
 u = 480.0 / skin.size[0]               # layout units per photo pixel
 
 
 def ux(v):
-    return round((v * k - box[0]) * u, 1)
+    return round((v * k - ORIGIN[0] * SCALE - box[0]) * u, 1)
 
 
 def uy(v):
-    return round((v * k - box[1]) * u, 1)
+    return round((v * k - ORIGIN[1] * SCALE - box[1]) * u, 1)
 
 
 def ul(v):
